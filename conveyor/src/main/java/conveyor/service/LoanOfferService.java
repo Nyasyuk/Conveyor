@@ -21,8 +21,8 @@ public class LoanOfferService {
     @Value("${base-rate:}")
     private BigDecimal rate;
 
-    public List<LoanOfferDTO> getCalculationCredit(LoanApplicationRequestDTO loanApplicationRequestDTO) {
-        log.info("getCalculationCredit method start");
+    public List<LoanOfferDTO> getLoanOffersCredit(LoanApplicationRequestDTO loanApplicationRequestDTO) {
+        log.info("getLoanOffersCredit method start");
         List<LoanOfferDTO> loanOffers = new ArrayList<>();
         log.info("create LoanOfferDTO with isInsuranceEnabled = true, isSalaryClient = true");
         loanOffers.add(formationLoanOffer(true, true, loanApplicationRequestDTO));
@@ -37,16 +37,34 @@ public class LoanOfferService {
         List<LoanOfferDTO> sortedLoanOffers = loanOffers.stream()
                 .sorted(Comparator.comparing(LoanOfferDTO::getRate).reversed())
                 .collect(Collectors.toList());
-        log.info("getCalculationCredit method return " + sortedLoanOffers);
-        log.info("getCalculationCredit method end");
+        log.info("getLoanOffersCredit method return " + sortedLoanOffers);
+        log.info("getLoanOffersCredit method end");
         return sortedLoanOffers;
     }
 
     public LoanOfferDTO formationLoanOffer(boolean isInsuranceEnabled,
                                            boolean isSalaryClient, LoanApplicationRequestDTO dto) {
         log.info("formationLoanOffer method start");
-        LoanOfferDTO loanOfferDTO;
-        final BigDecimal newRate;
+        final BigDecimal newRate = calculatedRareByInsuranceEnabledAndSalaryClient(isInsuranceEnabled, isSalaryClient, rate);
+
+        log.info("totalAmount calculation");
+        BigDecimal totalAmount = calculatedTotalAmount(dto.getAmount(), dto.getTerm(), newRate, isInsuranceEnabled);
+        log.info("paymentInMouth calculation");
+        final BigDecimal paymentInMouth = calculatedPaymentInMouth(dto.getTerm(), totalAmount);
+        totalAmount = correctingTotalAmount(paymentInMouth, dto.getTerm());
+        LoanOfferDTO loanOfferDTO = new LoanOfferDTO(null, totalAmount,
+                dto.getAmount(), dto.getTerm(), paymentInMouth, newRate, isInsuranceEnabled, isSalaryClient);
+        log.info("loanOfferDto = " + loanOfferDTO);
+
+        log.info("formationLoanOffer method return " + loanOfferDTO);
+        log.info("formationLoanOffer method end");
+        return loanOfferDTO;
+    }
+
+    public BigDecimal calculatedRareByInsuranceEnabledAndSalaryClient(boolean isInsuranceEnabled,
+                                                                      boolean isSalaryClient, BigDecimal rate) {
+        log.info("calculatedRareByInsuranceEnabledAndSalaryClient method start");
+        BigDecimal newRate;
 
         log.info("isInsuranceEnabled = " + isInsuranceEnabled + ", isSalaryClient = " + isSalaryClient);
         log.info("newRate calculation");
@@ -60,26 +78,8 @@ public class LoanOfferService {
             newRate = rate.add(new BigDecimal("2"));
         }
         log.info("newRate = " + newRate);
-
-        log.info("totalAmount calculation");
-        final BigDecimal totalAmount = calculatedTotalAmount(dto.getAmount(), dto.getTerm(), newRate, isInsuranceEnabled);
-        log.info("paymentInMouth calculation");
-        final BigDecimal paymentInMouth = calculatedPaymentInMouth(dto.getTerm(), totalAmount);
-
-        loanOfferDTO = LoanOfferDTO.builder()
-                .requestedAmount(dto.getAmount())
-                .isInsuranceEnabled(isInsuranceEnabled)
-                .isSalaryClient(isSalaryClient)
-                .rate(newRate)
-                .term(dto.getTerm())
-                .totalAmount(totalAmount)
-                .monthlyPayment(paymentInMouth)
-                .build();
-        log.info("loanOfferDto = " + loanOfferDTO);
-
-        log.info("formationLoanOffer method return " + loanOfferDTO);
-        log.info("formationLoanOffer method end");
-        return loanOfferDTO;
+        log.info("calculatedRareByInsuranceEnabledAndSalaryClient method end");
+        return newRate;
     }
 
     public BigDecimal calculatedTotalAmount(final BigDecimal amount, final Integer term,
@@ -89,7 +89,7 @@ public class LoanOfferService {
         BigDecimal newAmount;
 
         if (isInsuranceEnabled) {
-            newAmount = amount.add(new BigDecimal("100"), MathContext.DECIMAL128);
+            newAmount = amount.add(new BigDecimal("100000"), MathContext.DECIMAL128);
         } else {
             newAmount = amount;
         }
@@ -112,5 +112,13 @@ public class LoanOfferService {
         log.info("paymentInMouth = " + paymentInMouth);
         log.info("calculatedPaymentInMouth method end");
         return paymentInMouth;
+    }
+
+    public BigDecimal correctingTotalAmount(final BigDecimal paymentInMouth, final Integer term) {
+        log.info("correctingTotalAmount method start");
+        BigDecimal totalAmount = paymentInMouth.multiply(BigDecimal.valueOf(term));
+        log.info("totalAmount = " + totalAmount);
+        log.info("correctingTotalAmount method end");
+        return totalAmount;
     }
 }

@@ -10,7 +10,6 @@ import java.math.BigDecimal;
 @EqualsAndHashCode
 @ToString
 @AllArgsConstructor
-@Builder
 public class LoanOfferDTO {
     private Long applicationId;
     private BigDecimal totalAmount;
