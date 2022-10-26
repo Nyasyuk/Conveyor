@@ -1,2 +1,4 @@
-package deal.mode;public class PaymentScheduleElement {
+package deal.mode;
+
+public class PaymentScheduleElement {
 }

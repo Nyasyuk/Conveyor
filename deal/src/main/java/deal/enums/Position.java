@@ -1,4 +1,4 @@
-package conveyor.helperclass.enums;
+package deal.enums;
 
 public enum Position {
     WORKER,
